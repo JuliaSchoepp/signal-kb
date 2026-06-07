@@ -1,0 +1,12 @@
+# tags.example.yaml
+# Copy this file to your vault repo as tags.yaml and adjust to your domain.
+# Rules:
+#   - Tag values must be kebab-case (e.g. "eu-politik", not "EU Politik")
+#   - Tags are always German (the LLM is instructed to use this vocabulary)
+#   - Add tags with a PR to the vault repo; the pipeline picks them up on the next ingest
+#   - Keep the list focused — a tight vocabulary produces better tagging than a sprawling one
+
+tags:
+  - beispiel-tag-1
+  - beispiel-tag-2
+  - beispiel-tag-3

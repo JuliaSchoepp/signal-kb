@@ -1,0 +1,18 @@
+[Unit]
+Description=Signal KB ingestion bot
+After=network-online.target docker.service
+Wants=network-online.target
+
+[Service]
+Type=simple
+User=pi
+WorkingDirectory=/home/pi/signal-kb
+EnvironmentFile=/home/pi/signal-kb/.env
+ExecStart=/home/pi/signal-kb/.venv/bin/python -m pipeline.bot
+Restart=on-failure
+RestartSec=10
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
