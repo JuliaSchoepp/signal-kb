@@ -18,7 +18,7 @@ def extract_url(url: str) -> str:
         downloaded,
         include_tables=False,
         no_fallback=False,
-        output_format="text",
+        output_format="txt",
     )
     if not text:
         raise ExtractionError(f"No extractable text at URL: {url}")

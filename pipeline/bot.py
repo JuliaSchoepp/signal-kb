@@ -110,23 +110,14 @@ async def _listen(
     async with websockets.connect(ws_url) as ws:
         logger.info("Connected to %s", ws_url)
 
-        # Subscribe to receive messages for our account
-        subscribe_req = {
-            "jsonrpc": "2.0",
-            "method": "subscribeReceive",
-            "params": {"account": account},
-            "id": 1,
-        }
-        await ws.send(json.dumps(subscribe_req))
-
         async for raw in ws:
             try:
                 msg = json.loads(raw)
             except json.JSONDecodeError:
                 continue
 
-            # Filter to group messages from our target group only
-            envelope = (msg.get("params") or {}).get("envelope") or {}
+            # signal-cli-rest-api /v1/receive delivers {"envelope": {...}, "account": "..."}
+            envelope = msg.get("envelope") or {}
             data_message = envelope.get("dataMessage") or {}
             if data_message.get("groupInfo", {}).get("groupId") != group_id:
                 continue

@@ -44,14 +44,10 @@ def _build_schema(tags: list[str]) -> dict:
             "key_points": {
                 "type": "array",
                 "items": {"type": "string"},
-                "minItems": 3,
-                "maxItems": 5,
             },
             "tags": {
                 "type": "array",
                 "items": {"type": "string", "enum": tags},
-                "minItems": 1,
-                "maxItems": 5,
             },
             "note_type": {
                 "type": "string",
@@ -109,7 +105,7 @@ def summarize(
         output_config={
             "format": {
                 "type": "json_schema",
-                "json_schema": {"name": "note_summary", "schema": schema},
+                "schema": schema,
             }
         },
     )

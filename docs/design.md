@@ -51,3 +51,7 @@ Enforcement is in code, not convention. The exclusions are structural: the pipel
 **Slug generated in Python, not by LLM.** Deterministic generation with `python-slugify` is more predictable than LLM output for filename-safe strings, especially with German characters.
 
 **One short quote maximum.** The system prompt limits quotation to at most one attributed quote under 15 words. This is both a copyright safeguard and a quality forcing function — it prevents the model from lazily reproducing source text instead of synthesizing it.
+
+## Future improvements
+
+**Catch-up on missed messages after downtime.** The bot currently only processes messages received while the WebSocket connection is live. After a restart or outage, messages sent during the gap are silently lost. `signal-cli-rest-api` exposes a REST endpoint (`GET /v1/receive`) that returns queued messages; polling it once at startup would recover anything the bot missed. This needs deduplication logic (e.g. a small seen-IDs store) to avoid reprocessing messages that were already handled before the outage.

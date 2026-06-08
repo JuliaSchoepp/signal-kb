@@ -67,25 +67,73 @@ Stop the temporary container (Ctrl-C).
 docker compose up -d
 ```
 
-The container now listens on `ws://localhost:8080/v1/ws`.
+The container now listens on `ws://localhost:8080/v1/receive/<number>`.
 
 ---
 
 ## 4. Add the bot to the Signal group
 
-On your personal Signal app, open the group → Group settings → Add members → add the bot number.
+In your Signal app, open the group → Group settings → Group link → enable it and copy the link (it looks like `https://signal.group/#...`).
+
+Stop the container, then join the group using signal-cli directly:
+
+```bash
+docker compose stop
+
+docker run --rm \
+  -v /mnt/ssd/signal-cli-config:/home/.local/share/signal-cli \
+  --entrypoint /usr/bin/signal-cli \
+  --user 1000:1000 \
+  bbernhard/signal-cli-rest-api:latest \
+  --config /home/.local/share/signal-cli \
+  -u +49... joinGroup \
+  --uri "https://signal.group/#..."
+
+docker compose up -d
+```
+
+> **Why not "Add members"?** Signal v2 groups send the invitation as an encrypted message that signal-cli cannot decrypt until a session is established. Joining via the group link bypasses this and works reliably.
 
 ---
 
 ## 5. Find the group ID
 
-Send any message to the group. Then inspect the container logs:
+Connect to the WebSocket and send any message to the group from your phone:
 
 ```bash
-docker compose logs -f | grep groupId
+wscat -c ws://localhost:8080/v1/receive/+49...
 ```
 
-Copy the base64 group ID string — it looks like `group.XXXXXXXXXXX==`. Set it as `SIGNAL_GROUP_ID` in your `.env`.
+Or with Python if wscat is not available:
+
+```bash
+uv run --with websockets python3 -c "
+import asyncio, websockets, json
+async def main():
+    async with websockets.connect('ws://localhost:8080/v1/receive/+49...') as ws:
+        for _ in range(20):
+            try:
+                msg = await asyncio.wait_for(ws.recv(), timeout=5)
+                print(json.dumps(json.loads(msg), indent=2))
+            except asyncio.TimeoutError:
+                break
+asyncio.run(main())
+"
+```
+
+Alternatively, query it directly:
+
+```bash
+curl http://localhost:8080/v1/groups/+49...
+```
+
+Use the `internal_id` field from the response as `SIGNAL_GROUP_ID` — not the `id` field. Example response:
+
+```json
+{"id": "group.XXX=", "internal_id": "YIngz...==", ...}
+```
+
+Set `SIGNAL_GROUP_ID=YIngz...==` in your `.env`.
 
 ---
 
