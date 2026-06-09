@@ -17,8 +17,9 @@ CONTENT QUALITY
 
 SOURCE DATE
 - source_date: If the source content contains an explicit publication date — for example in article metadata, byline, footer, or PDF header — extract it as ISO 8601 (YYYY-MM-DD).
-- If no explicit date is unambiguously stated, set source_date to null.
-- Do not guess. Do not infer a date from content (e.g. "this references the 2024 election, so it's probably from 2024"). Only set a date if it is explicitly stated as the publication date of the source.
+- If no explicit date is found in the content, check the SOURCE URL filename for a date pattern (e.g. `25-07-07_study.pdf` → 2025-07-07, `2024-03-report.pdf` → 2024-03-01). Two-digit years are assumed to be 2000+.
+- If neither content nor URL filename contains an unambiguous date, set source_date to null.
+- Do not infer a date from content topics (e.g. "this references the 2024 election, so it's probably from 2024").
 - Partial dates are normalized to the first day of the smallest known unit:
   - Month and year only (e.g. "Juni 2026") → first of that month (2026-06-01).
   - Year only (e.g. "2024") → first of that year (2024-01-01).

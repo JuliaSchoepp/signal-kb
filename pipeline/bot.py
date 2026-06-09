@@ -6,8 +6,8 @@ import logging
 import os
 import re
 import sys
-from urllib.parse import urlparse
 
+import httpx
 import websockets
 from dotenv import load_dotenv
 
@@ -39,7 +39,7 @@ def _classify(envelope: dict) -> tuple[str, dict]:
 
     for att in attachments:
         if att.get("contentType") == "application/pdf":
-            return "pdf", {"path": att["filename"], "caption": msg.get("message", "")}
+            return "pdf", {"id": att["id"], "caption": msg.get("message", "")}
 
     text = (msg.get("message") or "").strip()
     match = URL_RE.search(text)
@@ -54,7 +54,38 @@ def _classify(envelope: dict) -> tuple[str, dict]:
     return "ignore", {}
 
 
-async def _handle(envelope: dict, tags_file: str, vault_path: str, remote: str) -> None:
+async def _send_reaction(
+    api_url: str,
+    account: str,
+    group_recipient: str,
+    source_uuid: str,
+    timestamp: int,
+) -> None:
+    async with httpx.AsyncClient() as client:
+        resp = await client.post(
+            f"{api_url}/v1/reactions/{account}",
+            json={
+                "recipient": group_recipient,
+                "reaction": "✅",
+                "target_author": source_uuid,
+                "timestamp": timestamp,
+            },
+            timeout=10,
+        )
+        if resp.status_code not in (200, 201, 204):
+            logger.warning("Reaction failed %s: %s", resp.status_code, resp.text[:200])
+
+
+async def _handle(
+    envelope: dict,
+    tags_file: str,
+    vault_path: str,
+    remote: str,
+    api_url: str,
+    account: str,
+    group_recipient: str,
+    attachments_path: str,
+) -> None:
     kind, payload = _classify(envelope)
     if kind == "ignore":
         return
@@ -72,7 +103,8 @@ async def _handle(envelope: dict, tags_file: str, vault_path: str, remote: str) 
             path = commit_note(note, vault_path, remote, source_url=payload["url"])
 
         elif kind == "pdf":
-            content = extract_pdf(payload["path"])
+            pdf_path = os.path.join(attachments_path, payload["id"])
+            content = extract_pdf(pdf_path)
             note = summarize(
                 source_type="pdf",
                 content=content,
@@ -98,6 +130,14 @@ async def _handle(envelope: dict, tags_file: str, vault_path: str, remote: str) 
 
     logger.info("Ingested → %s", path)
 
+    source_uuid = envelope.get("sourceUuid")
+    msg_timestamp = envelope.get("timestamp")
+    if source_uuid and msg_timestamp:
+        try:
+            await _send_reaction(api_url, account, group_recipient, source_uuid, msg_timestamp)
+        except Exception as exc:
+            logger.warning("Could not send reaction: %s", exc)
+
 
 async def _listen(
     ws_url: str,
@@ -106,6 +146,9 @@ async def _listen(
     tags_file: str,
     vault_path: str,
     remote: str,
+    api_url: str,
+    group_recipient: str,
+    attachments_path: str,
 ) -> None:
     async with websockets.connect(ws_url) as ws:
         logger.info("Connected to %s", ws_url)
@@ -123,7 +166,7 @@ async def _listen(
                 continue
 
             asyncio.create_task(
-                _handle(envelope, tags_file, vault_path, remote)
+                _handle(envelope, tags_file, vault_path, remote, api_url, account, group_recipient, attachments_path)
             )
 
 
@@ -140,11 +183,26 @@ async def main() -> None:
     vault_path = _env("VAULT_PATH")
     tags_file = os.environ.get("VAULT_TAGS_FILE") or f"{vault_path}/tags.yaml"
     remote = os.environ.get("GITHUB_REMOTE", "origin")
+    api_url = os.environ.get("SIGNAL_API_URL", "http://localhost:8080")
+    attachments_path = _env("SIGNAL_ATTACHMENTS_PATH")
+
+    # Look up the group's send-recipient ID (group.XXX= format) by internal_id
+    async with httpx.AsyncClient() as client:
+        resp = await client.get(f"{api_url}/v1/groups/{account}", timeout=10)
+        resp.raise_for_status()
+        groups = resp.json()
+    group_recipient = next(
+        (g["id"] for g in groups if g.get("internal_id") == group_id),
+        None,
+    )
+    if not group_recipient:
+        raise RuntimeError(f"Group with internal_id {group_id!r} not found via API")
+    logger.info("Group recipient: %s", group_recipient)
 
     delay = RECONNECT_DELAY_INITIAL
     while True:
         try:
-            await _listen(ws_url, account, group_id, tags_file, vault_path, remote)
+            await _listen(ws_url, account, group_id, tags_file, vault_path, remote, api_url, group_recipient, attachments_path)
             delay = RECONNECT_DELAY_INITIAL
         except Exception as exc:
             logger.error("Connection error: %s — reconnecting in %ds", exc, delay)

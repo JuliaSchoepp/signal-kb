@@ -1,5 +1,9 @@
 """Content extraction for URLs, PDFs, and plain text."""
 
+import os
+import tempfile
+import urllib.request
+
 import fitz
 import trafilatura
 
@@ -10,7 +14,27 @@ class ExtractionError(Exception):
     pass
 
 
+def _extract_pdf_from_url(url: str) -> str:
+    try:
+        with tempfile.NamedTemporaryFile(suffix=".pdf", delete=False) as f:
+            tmp_path = f.name
+        urllib.request.urlretrieve(url, tmp_path)
+        return extract_pdf(tmp_path)
+    except ExtractionError:
+        raise
+    except Exception as exc:
+        raise ExtractionError(f"Failed to download PDF from {url}: {exc}") from exc
+    finally:
+        try:
+            os.unlink(tmp_path)
+        except Exception:
+            pass
+
+
 def extract_url(url: str) -> str:
+    if url.lower().split("?")[0].endswith(".pdf"):
+        return _extract_pdf_from_url(url)
+
     downloaded = trafilatura.fetch_url(url)
     if downloaded is None:
         raise ExtractionError(f"Failed to fetch URL: {url}")
