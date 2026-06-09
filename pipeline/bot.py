@@ -39,7 +39,10 @@ def _classify(envelope: dict) -> tuple[str, dict]:
 
     for att in attachments:
         if att.get("contentType") == "application/pdf":
-            return "pdf", {"id": att["id"], "caption": msg.get("message", "")}
+            att_id = att.get("id")
+            if not att_id:
+                continue
+            return "pdf", {"id": att_id, "caption": msg.get("message", "")}
 
     text = (msg.get("message") or "").strip()
     match = URL_RE.search(text)
@@ -92,13 +95,14 @@ async def _handle(
 
     try:
         if kind == "url":
-            content = extract_url(payload["url"])
+            content, date_hint = extract_url(payload["url"])
             note = summarize(
                 source_type="url",
                 content=content,
                 tags_file=tags_file,
                 source_url=payload["url"],
                 submitter_note=payload.get("submitter_note"),
+                date_hint=date_hint,
             )
             path = commit_note(note, vault_path, remote, source_url=payload["url"])
 

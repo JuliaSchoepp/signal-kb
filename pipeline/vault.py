@@ -40,11 +40,16 @@ def _render_tags(tags: list[str]) -> str:
     return "[" + ", ".join(tags) + "]"
 
 
+def _yaml_str(value: str) -> str:
+    safe = value.replace("\\", "\\\\").replace('"', '\\"').replace("\n", " ").replace("\r", "")
+    return f'"{safe}"'
+
+
 def _render(note: NoteData, filing: date, source_url: str | None) -> str:
     url_value = source_url or "n/a"
     lines = [
         "---",
-        f'title: "{note.title}"',
+        f"title: {_yaml_str(note.title)}",
         f"date: {filing.isoformat()}",
         f"source_url: {url_value}",
         f"source_type: {note.note_type}",
@@ -88,7 +93,8 @@ def commit_note(
 
     repo = git.Repo(root)
     repo.index.add([str(note_file.relative_to(root))])
-    repo.index.commit(f"add: {note.title}")
+    commit_title = note.title.replace("\n", " ").replace("\r", "")
+    repo.index.commit(f"add: {commit_title}")
 
     try:
         repo.remotes[remote].push()

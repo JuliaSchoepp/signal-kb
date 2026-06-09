@@ -28,7 +28,7 @@ class NoteData:
 
 def _load_tags(tags_file: str) -> list[str]:
     with open(tags_file) as f:
-        data = yaml.safe_load(f)
+        data = yaml.safe_load(f) or {}
     tags = data.get("tags", [])
     if not tags:
         raise ValueError(f"tags.yaml at {tags_file} has no tags defined")
@@ -74,12 +74,14 @@ def _build_user_prompt(
     source_url: str | None,
     content: str,
     submitter_note: str | None,
+    date_hint: date | None = None,
 ) -> str:
     url_line = source_url or "n/a"
     note_section = submitter_note or "(none)"
+    hint_line = f"\nMETADATA DATE: {date_hint.isoformat()}" if date_hint else ""
     return (
         f"SOURCE TYPE: {source_type}\n"
-        f"SOURCE URL: {url_line}\n\n"
+        f"SOURCE URL: {url_line}{hint_line}\n\n"
         f"SOURCE CONTENT\n---\n{content}\n---\n\n"
         f"SUBMITTER NOTE\n{note_section}"
     )
@@ -91,10 +93,11 @@ def summarize(
     tags_file: str,
     source_url: str | None = None,
     submitter_note: str | None = None,
+    date_hint: date | None = None,
 ) -> NoteData:
     tags = _load_tags(tags_file)
     schema = _build_schema(tags)
-    user_prompt = _build_user_prompt(source_type, source_url, content, submitter_note)
+    user_prompt = _build_user_prompt(source_type, source_url, content, submitter_note, date_hint)
 
     client = anthropic.Anthropic(api_key=os.environ["ANTHROPIC_API_KEY"])
     response = client.messages.create(
@@ -110,6 +113,8 @@ def summarize(
         },
     )
 
+    if not response.content:
+        raise RuntimeError("Anthropic API returned an empty response")
     raw = json.loads(response.content[0].text)
 
     source_date = None

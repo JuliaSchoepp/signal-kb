@@ -17,8 +17,9 @@ CONTENT QUALITY
 
 SOURCE DATE
 - source_date: If the source content contains an explicit publication date — for example in article metadata, byline, footer, or PDF header — extract it as ISO 8601 (YYYY-MM-DD).
-- If no explicit date is found in the content, check the SOURCE URL filename for a date pattern (e.g. `25-07-07_study.pdf` → 2025-07-07, `2024-03-report.pdf` → 2024-03-01). Two-digit years are assumed to be 2000+.
-- If neither content nor URL filename contains an unambiguous date, set source_date to null.
+- If the user message includes a "METADATA DATE: YYYY-MM-DD" line, this date was extracted from the page's metadata (Open Graph, JSON-LD, <time> elements) or URL path by the extractor. Treat it as reliable and use it as source_date unless the article body contains a clearly different explicit date.
+- If neither content nor metadata provides a date, check the SOURCE URL for date patterns in both filenames (e.g. `2025-07-07_study.pdf` → 2025-07-07) and path segments (e.g. `/2025/06/04/` → 2025-06-04, `/2025/06/` → 2025-06-01, `/2025/` → 2025-01-01). Two-digit years are assumed to be 2000+.
+- If no unambiguous date can be determined, set source_date to null.
 - Do not infer a date from content topics (e.g. "this references the 2024 election, so it's probably from 2024").
 - Partial dates are normalized to the first day of the smallest known unit:
   - Month and year only (e.g. "Juni 2026") → first of that month (2026-06-01).
