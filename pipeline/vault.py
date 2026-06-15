@@ -64,7 +64,7 @@ def _render(note: NoteData, filing: date, source_url: str | None) -> str:
         "",
         "## Key points",
         "",
-        *[f"- {point}" for point in note.key_points],
+        *[f"- {point}" for point in note.key_points if len(point.strip()) > 2],
     ]
 
     if note.submitter_note:

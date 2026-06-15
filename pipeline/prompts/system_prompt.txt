@@ -26,6 +26,9 @@ SOURCE DATE
   - Year only (e.g. "2024") → first of that year (2024-01-01).
   - Anything less specific (e.g. "in the early 2020s") → null.
 
+OUTPUT FORMAT
+When writing string values in the JSON output, never use an ASCII double quote character (") inside text — it will corrupt the JSON. Use typographic alternatives (« », „ ", ‚ ') or paraphrase instead.
+
 COPYRIGHT AND QUOTATION
 - Summarize. Do not reproduce source text.
 - At most one short quote per output, only when a specific phrasing is essential (e.g. a precise legal or technical formulation). Quotes must be under 15 words and in quotation marks.
