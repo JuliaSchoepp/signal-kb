@@ -97,6 +97,11 @@ def commit_note(
     repo.index.commit(f"add: {commit_title}")
 
     try:
+        repo.git.pull("--rebase", remote)
+    except Exception as exc:
+        logger.warning("git pull --rebase failed: %s", exc)
+
+    try:
         repo.remotes[remote].push()
     except Exception as exc:
         logger.warning("git push failed (will retry on next run): %s", exc)
