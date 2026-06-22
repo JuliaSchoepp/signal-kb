@@ -11,6 +11,9 @@ import trafilatura
 
 MAX_CHARS = 40_000
 MAX_PDF_BYTES = 20 * 1024 * 1024  # 20 MB
+MAX_HTML_BYTES = 10 * 1024 * 1024  # 10 MB
+
+_USER_AGENT = "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"
 
 _URL_FULL_DATE_RE = re.compile(r"/(\d{4})/(\d{2})/(\d{2})/")
 _URL_YEAR_MONTH_RE = re.compile(r"/(\d{4})/(\d{2})/")
@@ -81,11 +84,14 @@ def extract_url(url: str) -> tuple[str, date | None]:
     if url.lower().split("?")[0].endswith(".pdf"):
         return _extract_pdf_from_url(url), _date_from_url_path(url)
 
-    downloaded = trafilatura.fetch_url(
-        url,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"},
-    )
-    if downloaded is None:
+    req = urllib.request.Request(url, headers={"User-Agent": _USER_AGENT})
+    try:
+        with urllib.request.urlopen(req, timeout=30) as response:
+            raw = response.read(MAX_HTML_BYTES)
+    except Exception as exc:
+        raise ExtractionError(f"Failed to fetch URL: {url}: {exc}") from exc
+    downloaded = raw.decode("utf-8", errors="replace")
+    if not downloaded:
         raise ExtractionError(f"Failed to fetch URL: {url}")
     text = trafilatura.extract(
         downloaded,
