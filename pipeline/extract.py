@@ -81,7 +81,10 @@ def extract_url(url: str) -> tuple[str, date | None]:
     if url.lower().split("?")[0].endswith(".pdf"):
         return _extract_pdf_from_url(url), _date_from_url_path(url)
 
-    downloaded = trafilatura.fetch_url(url)
+    downloaded = trafilatura.fetch_url(
+        url,
+        headers={"User-Agent": "Mozilla/5.0 (compatible; Googlebot/2.1; +http://www.google.com/bot.html)"},
+    )
     if downloaded is None:
         raise ExtractionError(f"Failed to fetch URL: {url}")
     text = trafilatura.extract(
