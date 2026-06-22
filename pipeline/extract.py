@@ -1,10 +1,13 @@
 """Content extraction for URLs, PDFs, and plain text."""
 
+import logging
 import os
 import re
 import tempfile
 import urllib.request
 from datetime import date
+
+logger = logging.getLogger(__name__)
 
 import fitz
 import trafilatura
@@ -113,8 +116,28 @@ def extract_pdf(path: str) -> str:
         pages = [page.get_text() for page in doc]
     text = "\n".join(pages).strip()
     if not text:
+        text = _ocr_pdf(path)
+    if not text:
         raise ExtractionError(f"No extractable text in PDF: {path}")
     return text[:MAX_CHARS]
+
+
+def _ocr_pdf(path: str) -> str:
+    try:
+        import pytesseract
+        from PIL import Image
+
+        doc = fitz.open(path)
+        pages = []
+        with doc:
+            for page in doc:
+                pix = page.get_pixmap(dpi=150)
+                img = Image.frombytes("RGB", [pix.width, pix.height], pix.samples)
+                pages.append(pytesseract.image_to_string(img, lang="deu+eng"))
+        return "\n".join(pages).strip()
+    except Exception as exc:
+        logger.warning("OCR fallback failed: %s", exc)
+        return ""
 
 
 def extract_text(text: str) -> str:
